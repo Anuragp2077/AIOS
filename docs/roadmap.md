@@ -60,15 +60,13 @@ AIOS is developed incrementally. Each stage should produce a working, testable r
 
 ## Stage 5 — Models
 
-Stage 5 attaches model providers to these process objects without changing their lifecycle/security boundaries.
+* [x] Model provider interface
+* [x] Local model support
+* [x] Cloud model support
+* [x] Model roles
+* [x] Model selection
 
-* [ ] Model provider interface
-* [ ] Local model support
-* [ ] Cloud model support
-* [ ] Model roles
-* [ ] Model selection
-
-**Result:** AIOS can execute AI tasks through a unified model interface.
+**Result:** AIOS can register local/cloud model providers, maintain a unified model catalog, and route role-based defaults. Inference transport remains behind this interface for the execution layer.
 
 ## Stage 6 — Tools
 

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set_model_default"
+description = "Enables the set_model_default command without any pre-configured scope."
+commands.allow = ["set_model_default"]
+
+[[permission]]
+identifier = "deny-set_model_default"
+description = "Denies the set_model_default command without any pre-configured scope."
+commands.deny = ["set_model_default"]

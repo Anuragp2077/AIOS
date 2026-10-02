@@ -20,6 +20,13 @@
     "allow-register-project",
     "allow-remove-project",
     "allow-set-active-project",
-    "allow-refresh-projects"
+    "allow-refresh-projects",
+    "allow-get-models",
+    "allow-register-model-provider",
+    "allow-remove-model-provider",
+    "allow-register-model",
+    "allow-remove-model",
+    "allow-set-model-default",
+    "allow-clear-model-default"
   ]
 }

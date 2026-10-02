@@ -60,7 +60,7 @@ Stage 14  Hardening
 
 ## Current Status
 
-**Stage 4 — AI Processes (initial implementation)**
+**Stage 5 — Models (initial implementation)**
 
 The desktop control plane now has a project registry and managed AI-process lifecycle layer on top of the Rust runtime:
 
@@ -77,10 +77,15 @@ The desktop control plane now has a project registry and managed AI-process life
 * Per-process resource configuration (CPU, memory and runtime budget metadata)
 * Runtime shutdown propagates a stopped state to active processes
 * Process lifecycle events through the `aios:runtime` event stream
-* Rust unit tests for project and process invariants
+* Unified model provider interface
+* Local/cloud provider types with endpoint and credential-variable metadata
+* Model registry with role assignments and context metadata
+* Role-based model defaults for general, planner, coder and reviewer workloads
+* `aios:models` event stream for frontend synchronization
+* Rust unit tests for project, process and model invariants
 * Frontend and Rust validation wired into CI
 
-The implementation is intentionally bounded. AI Processes are lifecycle/state objects at this stage; they do **not** execute a model, run shell commands, modify files, access the network, or consume enforced host resources. Resource values are recorded as policy metadata and enforcement belongs to the later sandbox stage.
+The implementation is intentionally bounded. Model registration and routing do **not** store API keys, execute inference, run shell commands, modify files, or access external tools. Provider credentials are referenced by environment-variable name only. Actual model execution will consume this interface behind later execution and sandbox boundaries.
 
 ## Architecture So Far
 
@@ -99,10 +104,15 @@ Rust Core
   │    ├── Active project
   │    └── Repository detection
   │
-  └── AI Processes
-       ├── Goal
-       ├── Lifecycle state
-       └── Resource policy metadata
+  ├── AI Processes
+  │    ├── Goal
+  │    ├── Lifecycle state
+  │    └── Resource policy metadata
+  │
+  └── Models
+       ├── Provider registry
+       ├── Model catalog
+       └── Role-based defaults
 ```
 
 Tauri 2 uses commands for request/response IPC and events for lifecycle/state updates. AIOS keeps those boundaries explicit so later privileged operations can be constrained through capabilities and permissions.
