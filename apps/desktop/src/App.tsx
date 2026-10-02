@@ -13,8 +13,6 @@ type ModelProviderInfo = { id: string; name: string; kind: ProviderKind; endpoin
 type ModelInfo = { id: string; providerId: string; name: string; roles: ModelRole[]; contextWindow: number | null; enabled: boolean };
 type ModelSelection = { role: ModelRole; providerId: string; modelId: string };
 type ModelsSnapshot = { version: string; providerCount: number; modelCount: number; providers: ModelProviderInfo[]; models: ModelInfo[]; defaults: ModelSelection[] };
-type ProviderKind = "local" | "cloud";
-type ModelRole = "general" | "planner" | "coder" | "reviewer";
 type InputChange = { currentTarget: HTMLInputElement };
 type TextareaChange = { currentTarget: HTMLTextAreaElement };
 
@@ -52,25 +50,10 @@ type ProjectInfo = {
 type ProjectsSnapshot = {
   version: string; activeProjectId: string | null; projectCount: number; projects: ProjectInfo[];
 };
-type ModelProviderInfo = {
-  id: string; name: string; kind: ProviderKind; endpoint: string;
-  authEnv: string | null; enabled: boolean; builtIn: boolean;
-};
-type ModelInfo = {
-  id: string; providerId: string; name: string; roles: ModelRole[];
-  contextWindow: number | null; enabled: boolean;
-};
-type ModelSelection = { role: ModelRole; providerId: string; modelId: string };
-type ModelsSnapshot = {
-  version: string; providerCount: number; modelCount: number;
-  providers: ModelProviderInfo[]; models: ModelInfo[]; defaults: ModelSelection[];
-};
 
 const RUNTIME_EVENT = "aios:runtime";
 const PROJECTS_EVENT = "aios:projects";
 const MODELS_EVENT = "aios:models";
-const MODELS_EVENT = "aios:models";
-const MODEL_ROLES: ModelRole[] = ["general", "planner", "coder", "reviewer"];
 
 const EMPTY_RUNTIME: RuntimeSnapshot = {
   version: "0.4.0", status: "stopped", startedAt: null, uptimeSeconds: 0,
@@ -88,7 +71,6 @@ function App() {
   const [runtime, setRuntime] = useState<RuntimeSnapshot>(EMPTY_RUNTIME);
   const [projects, setProjects] = useState<ProjectsSnapshot>(EMPTY_PROJECTS);
   const [models, setModels] = useState<ModelsSnapshot>(EMPTY_MODELS);
-  const [models, setModels] = useState<ModelsSnapshot>(EMPTY_MODELS);
   const [projectName, setProjectName] = useState("");
   const [workspace, setWorkspace] = useState("");
   const [processName, setProcessName] = useState("");
@@ -96,24 +78,12 @@ function App() {
   const [maxCpuPercent, setMaxCpuPercent] = useState("");
   const [maxMemoryMb, setMaxMemoryMb] = useState("");
   const [maxRuntimeSeconds, setMaxRuntimeSeconds] = useState("");
-  const [providerName, setProviderName] = useState("");
-  const [providerKind, setProviderKind] = useState<ProviderKind>("local");
-  const [providerEndpoint, setProviderEndpoint] = useState("http://127.0.0.1:11434/v1");
-  const [providerAuthEnv, setProviderAuthEnv] = useState("");
-  const [modelId, setModelId] = useState("");
-  const [modelName, setModelName] = useState("");
-  const [modelProviderId, setModelProviderId] = useState("");
-  const [modelContextWindow, setModelContextWindow] = useState("");
-  const [modelRoles, setModelRoles] = useState<ModelRole[]>(["general"]);
-  const [selectedRole, setSelectedRole] = useState<ModelRole>("general");
-  const [selectedDefault, setSelectedDefault] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let stopRuntimeListener: UnlistenFn | undefined;
     let stopProjectsListener: UnlistenFn | undefined;
-    let stopModelsListener: UnlistenFn | undefined;
     let stopModelsListener: UnlistenFn | undefined;
     void (async () => {
       try {
@@ -125,7 +95,6 @@ function App() {
         setRuntime(runtimeSnapshot);
         setProjects(projectSnapshot);
         setModels(modelSnapshot);
-        if (!modelProviderId && modelSnapshot.providers[0]) setModelProviderId(modelSnapshot.providers[0].id);
         stopRuntimeListener = await listen<RuntimeSnapshot>(RUNTIME_EVENT, (event) => setRuntime(event.payload));
         stopProjectsListener = await listen<ProjectsSnapshot>(PROJECTS_EVENT, (event) => setProjects(event.payload));
         stopModelsListener = await listen<ModelsSnapshot>(MODELS_EVENT, (event) => setModels(event.payload));
@@ -139,11 +108,6 @@ function App() {
       stopModelsListener?.();
     };
   }, []);
-
-  useEffect(() => {
-    const existing = models.defaults.find((selection) => selection.role === selectedRole);
-    setSelectedDefault(existing ? `${existing.providerId}::${existing.modelId}` : "");
-  }, [models.defaults, selectedRole]);
 
   const runtimeRunning = runtime.status === "running";
   const uptime = useMemo(() => formatDuration(runtime.uptimeSeconds), [runtime.uptimeSeconds]);
@@ -212,74 +176,6 @@ function App() {
     catch (cause) { setError(String(cause)); }
   }
 
-  async function handleRegisterProvider(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setError(""); setBusy(true);
-    try {
-      const created = await invoke<ModelProviderInfo>("register_model_provider", {
-        name: providerName, kind: providerKind, endpoint: providerEndpoint, authEnv: providerAuthEnv.trim() || null,
-      });
-      const snapshot = await invoke<ModelsSnapshot>("get_models");
-      setModels(snapshot);
-      setModelProviderId(created.id);
-      setProviderName(""); setProviderEndpoint(providerKind === "local" ? "http://127.0.0.1:11434/v1" : "https://api.openai.com/v1");
-      setProviderAuthEnv("");
-    } catch (cause) { setError(String(cause)); }
-    finally { setBusy(false); }
-  }
-
-  async function removeProvider(id: string) {
-    setError("");
-    try {
-      const snapshot = await invoke<ModelsSnapshot>("remove_model_provider", { id });
-      setModels(snapshot);
-      if (modelProviderId === id) setModelProviderId(snapshot.providers[0]?.id ?? "");
-    } catch (cause) { setError(String(cause)); }
-  }
-
-  async function handleRegisterModel(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setError(""); setBusy(true);
-    if (!modelProviderId) { setError("Select a provider first."); setBusy(false); return; }
-    try {
-      await invoke<ModelInfo>("register_model", {
-        providerId: modelProviderId,
-        modelId,
-        name: modelName,
-        roles: modelRoles,
-        contextWindow: parseOptionalInteger(modelContextWindow),
-      });
-      setModels(await invoke<ModelsSnapshot>("get_models"));
-      setModelId(""); setModelName(""); setModelContextWindow("");
-    } catch (cause) { setError(String(cause)); }
-    finally { setBusy(false); }
-  }
-
-  async function removeModel(providerId: string, id: string) {
-    setError("");
-    try { setModels(await invoke<ModelsSnapshot>("remove_model", { providerId, modelId: id })); }
-    catch (cause) { setError(String(cause)); }
-  }
-
-  async function applyDefaultModel() {
-    setError("");
-    if (!selectedDefault) {
-      try { setModels(await invoke<ModelsSnapshot>("clear_model_default", { role: selectedRole })); }
-      catch (cause) { setError(String(cause)); }
-      return;
-    }
-    const [providerId, modelIdValue] = selectedDefault.split("::");
-    try {
-      setModels(await invoke<ModelsSnapshot>("set_model_default", {
-        role: selectedRole, providerId, modelId: modelIdValue,
-      }));
-    } catch (cause) { setError(String(cause)); }
-  }
-
-  function toggleRole(role: ModelRole) {
-    setModelRoles((current) =>
-      current.includes(role) ? current.filter((item) => item !== role) : [...current, role],
-    );
-  }
-
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -307,41 +203,6 @@ function App() {
         {view === "projects" && <ProjectsPage projects={projects} projectName={projectName} workspace={workspace} busy={busy} onProjectName={setProjectName} onWorkspace={setWorkspace} onSubmit={handleRegisterProject} onActivate={(id) => void setActiveProject(id)} onRemove={(id) => void removeProject(id)} onRefresh={() => void refreshProjects()} />}
         {view === "models" && <ModelsPage models={models} onRefresh={() => void (async () => setModels(await invoke<ModelsSnapshot>("get_models")))()} onRemoveProvider={(id) => void (async () => { try { setModels(await invoke<ModelsSnapshot>("remove_model_provider", { id })); } catch (cause) { setError(String(cause)); } })()} onRemoveModel={(providerId, modelId) => void (async () => { try { setModels(await invoke<ModelsSnapshot>("remove_model", { providerId, modelId })); } catch (cause) { setError(String(cause)); } })()} onSetDefault={(role, providerId, modelId) => void (async () => { try { setModels(await invoke<ModelsSnapshot>("set_model_default", { role, providerId, modelId })); } catch (cause) { setError(String(cause)); } })()} />}
         {view === "processes" && <ProcessesPage runtime={runtime} runtimeRunning={runtimeRunning} processName={processName} processGoal={processGoal} maxCpuPercent={maxCpuPercent} maxMemoryMb={maxMemoryMb} maxRuntimeSeconds={maxRuntimeSeconds} busy={busy} onName={setProcessName} onGoal={setProcessGoal} onMaxCpuPercent={setMaxCpuPercent} onMaxMemoryMb={setMaxMemoryMb} onMaxRuntimeSeconds={setMaxRuntimeSeconds} onSubmit={handleCreateProcess} onTransition={(command, id) => void transitionProcess(command, id)} />}
-        {view === "models" && <ModelsPage
-          models={models}
-          providerName={providerName}
-          providerKind={providerKind}
-          providerEndpoint={providerEndpoint}
-          providerAuthEnv={providerAuthEnv}
-          modelId={modelId}
-          modelName={modelName}
-          modelProviderId={modelProviderId}
-          modelContextWindow={modelContextWindow}
-          modelRoles={modelRoles}
-          selectedRole={selectedRole}
-          selectedDefault={selectedDefault}
-          busy={busy}
-          onProviderName={setProviderName}
-          onProviderKind={(kind) => {
-            setProviderKind(kind);
-            setProviderEndpoint(kind === "local" ? "http://127.0.0.1:11434/v1" : "https://api.openai.com/v1");
-            setProviderAuthEnv(kind === "local" ? "" : "OPENAI_API_KEY");
-          }}
-          onProviderEndpoint={setProviderEndpoint}
-          onProviderAuthEnv={setProviderAuthEnv}
-          onModelId={setModelId}
-          onModelName={setModelName}
-          onModelProviderId={setModelProviderId}
-          onModelContextWindow={setModelContextWindow}
-          onToggleRole={toggleRole}
-          onSelectedRole={setSelectedRole}
-          onSelectedDefault={setSelectedDefault}
-          onRegisterProvider={handleRegisterProvider}
-          onRemoveProvider={(id) => void removeProvider(id)}
-          onRegisterModel={handleRegisterModel}
-          onRemoveModel={(providerId, id) => void removeModel(providerId, id)}
-          onApplyDefault={() => void applyDefaultModel()}
-        />}
       </main>
     </div>
   );
