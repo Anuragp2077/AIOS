@@ -1,11 +1,11 @@
 # Automatically generated - DO NOT EDIT!
 
 [[permission]]
-identifier = "allow-resume_process"
+identifier = "allow-resume-process"
 description = "Enables the resume_process command without any pre-configured scope."
 commands.allow = ["resume_process"]
 
 [[permission]]
-identifier = "deny-resume_process"
+identifier = "deny-resume-process"
 description = "Denies the resume_process command without any pre-configured scope."
 commands.deny = ["resume_process"]
