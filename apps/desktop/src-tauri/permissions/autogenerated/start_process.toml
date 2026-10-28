@@ -1,11 +1,11 @@
 # Automatically generated - DO NOT EDIT!
 
 [[permission]]
-identifier = "allow-start_process"
+identifier = "allow-start-process"
 description = "Enables the start_process command without any pre-configured scope."
 commands.allow = ["start_process"]
 
 [[permission]]
-identifier = "deny-start_process"
+identifier = "deny-start-process"
 description = "Denies the start_process command without any pre-configured scope."
 commands.deny = ["start_process"]

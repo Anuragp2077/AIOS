@@ -261,14 +261,12 @@ impl ModelsState {
             })
             .ok_or_else(|| format!("Model '{provider_id}/{model_id}' cannot serve the '{}' role", role.as_str()))?;
 
-        inner.defaults.insert(
+        let selection = ModelSelection {
             role,
-            ModelSelection {
-                role,
-                provider_id: model.provider_id.clone(),
-                model_id: model.id.clone(),
-            },
-        );
+            provider_id: model.provider_id.clone(),
+            model_id: model.id.clone(),
+        };
+        inner.defaults.insert(role, selection);
         Ok(snapshot_from(&inner))
     }
 

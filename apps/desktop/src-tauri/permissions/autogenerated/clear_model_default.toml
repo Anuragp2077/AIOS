@@ -1,11 +1,11 @@
 # Automatically generated - DO NOT EDIT!
 
 [[permission]]
-identifier = "allow-clear_model_default"
+identifier = "allow-clear-model-default"
 description = "Enables the clear_model_default command without any pre-configured scope."
 commands.allow = ["clear_model_default"]
 
 [[permission]]
-identifier = "deny-clear_model_default"
+identifier = "deny-clear-model-default"
 description = "Denies the clear_model_default command without any pre-configured scope."
 commands.deny = ["clear_model_default"]
