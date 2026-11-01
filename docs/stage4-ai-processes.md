@@ -1,25 +1,24 @@
-# Stage 4 — AI Processes
+# Stage 4 — AI Process Lifecycle
 
-Stage 4 turns process registration into a stateful lifecycle manager.
+Stage 4 introduces lifecycle records for AI Processes. A record describes a future unit of work; it is not an operating-system process or a running AI agent.
 
-## Scope
+## Process record
 
-AIOS now models each process with:
+Each record contains:
 
 - stable process ID
-- human-readable name
-- explicit goal
+- display name and goal
 - lifecycle state
-- creation/start/stop/update timestamps
-- resource-policy metadata
+- creation, start, stop, and update timestamps
+- optional resource-policy metadata
 
-Supported lifecycle:
+Supported transitions:
 
 `created → running → paused → running → stopped`
 
-A stopped process can be started again while the runtime is active. Failed is reserved as a terminal state for future execution errors.
+A stopped record may be started again while the in-app runtime is running. The failed state is reserved for future execution failures and is not currently produced by an executor.
 
-## Commands
+## Commands and events
 
 - `create_process`
 - `start_process`
@@ -27,18 +26,18 @@ A stopped process can be started again while the runtime is active. Failed is re
 - `resume_process`
 - `stop_process`
 
-All transitions emit the `aios:runtime` snapshot event.
+Transitions publish an `aios:runtime` snapshot event.
 
 ## Resource metadata
 
-A process may declare:
+A process can declare a maximum CPU percentage, memory budget in MB, and runtime duration in seconds. Values are validated and stored; they are **not enforced** by the OS.
 
-- maximum CPU percentage
-- maximum memory in MB
-- maximum runtime in seconds
+Enforcement belongs to Stage 7's sandbox and permission boundary. Do not attach terminal, filesystem-write, or network tools to these records before that boundary exists.
 
-Stage 4 records and validates these values. It does not enforce them at the host level. Enforcement belongs to the Stage 7 sandbox/capability system.
+## State lifetime
+
+Process records and runtime events currently live in memory and are lost when the desktop application exits. Persistence is planned for Stage 6.
 
 ## Deliberate boundary
 
-Stage 4 still does not execute an AI model, shell command, filesystem mutation, network request, or external tool. The process is the lifecycle/control-plane primitive that later execution layers will consume.
+Stage 4 does not start an AI model, launch an OS process, execute a shell command, mutate files, or make network requests. It supplies the lifecycle contract that later, sandboxed execution components can consume.

@@ -56,11 +56,11 @@ const PROJECTS_EVENT = "aios:projects";
 const MODELS_EVENT = "aios:models";
 
 const EMPTY_RUNTIME: RuntimeSnapshot = {
-  version: "0.4.0", status: "stopped", startedAt: null, uptimeSeconds: 0,
+  version: "0.5.0", status: "stopped", startedAt: null, uptimeSeconds: 0,
   processCount: 0, processes: [], events: [],
 };
 const EMPTY_PROJECTS: ProjectsSnapshot = {
-  version: "0.4.0", activeProjectId: null, projectCount: 0, projects: [],
+  version: "0.5.0", activeProjectId: null, projectCount: 0, projects: [],
 };
 const EMPTY_MODELS: ModelsSnapshot = {
   version: "0.5.0", providerCount: 0, modelCount: 0, providers: [], models: [], defaults: [],

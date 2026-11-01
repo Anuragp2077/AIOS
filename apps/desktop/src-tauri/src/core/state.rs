@@ -203,6 +203,12 @@ impl RuntimeState {
         if goal.is_empty() {
             return Err("Process goal cannot be empty".to_string());
         }
+        if name.chars().count() > 80 {
+            return Err("Process name must be 80 characters or fewer".to_string());
+        }
+        if goal.chars().count() > 240 {
+            return Err("Process goal must be 240 characters or fewer".to_string());
+        }
         resources.validate()?;
 
         let mut inner = self.inner.lock().map_err(|_| "runtime state lock poisoned".to_string())?;
@@ -335,7 +341,7 @@ fn snapshot_from(inner: &RuntimeInner) -> RuntimeSnapshot {
         .unwrap_or(0);
 
     RuntimeSnapshot {
-        version: "0.4.0",
+        version: "0.5.0",
         status: inner.status,
         started_at: inner.started_at,
         uptime_seconds,

@@ -6,22 +6,32 @@ on:
       - main
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  frontend-and-rust:
+  frontend:
+    name: Frontend and Tauri ACL
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check repository
+      - name: Check required repository files
         run: |
           test -f README.md
           test -f CONTRIBUTING.md
           test -f SECURITY.md
+          test -f LICENSE
           test -f docs/roadmap.md
           test -f apps/desktop/package-lock.json
-          echo "AIOS repository structure OK"
+          test -f scripts/check-tauri-acl.mjs
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -29,6 +39,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Validate Tauri command permissions
+        run: node scripts/check-tauri-acl.mjs
 
       - name: Install frontend dependencies
         working-directory: apps/desktop
@@ -38,10 +51,24 @@ jobs:
         working-directory: apps/desktop
         run: npm run build
 
+  rust:
+    name: Rust tests and compile check
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Linux system dependencies for Rust build
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+
+      - name: Install Linux system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -56,6 +83,6 @@ jobs:
         working-directory: apps/desktop/src-tauri
         run: cargo test --lib
 
-      - name: Check Rust
+      - name: Check Rust targets
         working-directory: apps/desktop/src-tauri
         run: cargo check

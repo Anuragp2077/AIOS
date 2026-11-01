@@ -130,11 +130,17 @@ impl ModelsState {
         auth_env: Option<String>,
     ) -> Result<ModelProviderInfo, String> {
         let name = name.trim().to_string();
-        let endpoint = normalize_endpoint(&endpoint)?;
+        let endpoint = normalize_endpoint(&endpoint, kind)?;
         let auth_env = normalize_auth_env(auth_env)?;
 
         if name.is_empty() {
             return Err("Provider name cannot be empty".to_string());
+        }
+        if name.chars().count() > 120 {
+            return Err("Provider name must be 120 characters or fewer".to_string());
+        }
+        if endpoint.chars().count() > 300 {
+            return Err("Provider endpoint must be 300 characters or fewer".to_string());
         }
 
         let mut inner = self.inner.lock().map_err(|_| "model state lock poisoned".to_string())?;
@@ -203,11 +209,13 @@ impl ModelsState {
             return Err("Context window must be greater than 0".to_string());
         }
 
-        let roles = if roles.is_empty() {
+        let mut roles = if roles.is_empty() {
             vec![ModelRole::General]
         } else {
             roles
         };
+        roles.sort();
+        roles.dedup();
 
         let mut inner = self.inner.lock().map_err(|_| "model state lock poisoned".to_string())?;
         if !inner.providers.iter().any(|provider| provider.id == provider_id && provider.enabled) {
@@ -383,14 +391,33 @@ fn snapshot_from(inner: &ModelsInner) -> ModelsSnapshot {
     }
 }
 
-fn normalize_endpoint(value: &str) -> Result<String, String> {
+fn normalize_endpoint(value: &str, kind: ProviderKind) -> Result<String, String> {
     let endpoint = value.trim().trim_end_matches('/').to_string();
     if endpoint.is_empty() {
         return Err("Provider endpoint cannot be empty".to_string());
     }
-    if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
+    if endpoint.chars().any(char::is_whitespace) || endpoint.contains('\\') {
+        return Err("Provider endpoint cannot contain whitespace or backslashes".to_string());
+    }
+
+    let (scheme, remainder) = endpoint
+        .split_once("://")
+        .ok_or_else(|| "Provider endpoint must use http:// or https://".to_string())?;
+    if scheme != "http" && scheme != "https" {
         return Err("Provider endpoint must use http:// or https://".to_string());
     }
+    if kind == ProviderKind::Cloud && scheme != "https" {
+        return Err("Cloud provider endpoints must use HTTPS".to_string());
+    }
+
+    let authority = remainder.split('/').next().unwrap_or_default();
+    if authority.is_empty() || authority.contains('@') {
+        return Err("Provider endpoint must include a host and must not embed credentials".to_string());
+    }
+    if endpoint.contains('?') || endpoint.contains('#') {
+        return Err("Provider endpoint must not contain query parameters or fragments; use an auth environment variable".to_string());
+    }
+
     Ok(endpoint)
 }
 
@@ -401,6 +428,9 @@ fn normalize_auth_env(value: Option<String>) -> Result<Option<String>, String> {
     let value = value.trim().to_string();
     if value.is_empty() {
         return Ok(None);
+    }
+    if value.chars().count() > 80 {
+        return Err("Auth environment variable name must be 80 characters or fewer".to_string());
     }
     let valid = value
         .chars()
@@ -488,6 +518,55 @@ mod tests {
 
         let error = state.remove_provider(&provider.id).expect_err("provider with models cannot be removed");
         assert!(error.contains("models"));
+    }
+
+    #[test]
+    fn provider_endpoints_reject_insecure_or_secret_bearing_urls() {
+        let state = ModelsState::new();
+
+        let insecure = state
+            .register_provider(
+                "Insecure".to_string(),
+                ProviderKind::Cloud,
+                "http://example.com/v1".to_string(),
+                None,
+            )
+            .expect_err("cloud endpoints must use HTTPS");
+        assert!(insecure.contains("HTTPS"));
+
+        let embedded_credentials = state
+            .register_provider(
+                "Credentials".to_string(),
+                ProviderKind::Cloud,
+                "https://user:secret@example.com/v1".to_string(),
+                None,
+            )
+            .expect_err("endpoint must not contain URL credentials");
+        assert!(embedded_credentials.contains("credentials"));
+
+        let query_secret = state
+            .register_provider(
+                "QuerySecret".to_string(),
+                ProviderKind::Cloud,
+                "https://example.com/v1?api_key=secret".to_string(),
+                None,
+            )
+            .expect_err("endpoint must not contain query parameters");
+        assert!(query_secret.contains("query parameters"));
+    }
+
+    #[test]
+    fn local_endpoint_is_normalized_and_valid() {
+        let state = ModelsState::new();
+        let provider = state
+            .register_provider(
+                "Local Test".to_string(),
+                ProviderKind::Local,
+                "http://127.0.0.1:9000/v1/".to_string(),
+                None,
+            )
+            .expect("local HTTP endpoint should be allowed");
+        assert_eq!(provider.endpoint, "http://127.0.0.1:9000/v1");
     }
 
     #[test]

@@ -39,9 +39,9 @@ __pycache__/
 .venv/
 venv/
 
-# Rust
-target/
-Cargo.lock
+# Rust build output
+# Cargo.lock is intentionally NOT ignored. Commit it for application crates
+# once it has been generated so dependency resolution is reproducible.
 
 # AI / ML model files
 models/*.gguf

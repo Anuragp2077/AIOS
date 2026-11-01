@@ -1,36 +1,27 @@
-# Stage 5 — Models
+# Stage 5 — Model Control Plane
 
-Stage 5 introduces the AIOS model control plane.
+Stage 5 introduces provider and model configuration. It does not implement inference.
 
-## Provider interface
+## Provider metadata
 
-A provider defines:
+A provider records:
 
 - stable provider ID
 - local or cloud classification
-- endpoint
-- enabled/built-in state
+- HTTP(S) endpoint
+- enabled and built-in flags
 - optional environment-variable name for authentication
-
-AIOS never stores the credential value in model state.
 
 Built-in templates:
 
-- **Ollama (Local)** → `http://127.0.0.1:11434/v1`
-- **OpenAI-Compatible (Cloud)** → `https://api.openai.com/v1`
+- **Ollama (Local):** `http://127.0.0.1:11434/v1`
+- **OpenAI-Compatible (Cloud):** `https://api.openai.com/v1`
 
-Providers are configurable, so other local or cloud endpoints can be registered without changing the core contract.
+These are configuration templates only. AIOS does not connect to the endpoints, validate that a server is reachable, or read secret values from the environment.
 
 ## Model catalog
 
-Each model records:
-
-- provider ID
-- model ID
-- display name
-- supported roles
-- optional context-window metadata
-- enabled state
+Each model records its provider ID, model ID, display name, supported roles, optional context-window metadata, and enabled state.
 
 Supported roles:
 
@@ -41,10 +32,10 @@ Supported roles:
 
 ## Routing
 
-AIOS stores one optional default model for each role. A model can only become a role default when that role is declared in its supported-role set.
+AIOS stores one optional default model for each role. A model can become a role default only when that role appears in the model's supported-role list.
 
-## Boundary
+## State and security boundary
 
-Stage 5 is deliberately configuration-only. It does not execute inference, shell commands, filesystem mutations, network requests, or external tools.
+Provider records, model records, and role defaults are stored in memory and reset when the application exits. Persistence is planned for Stage 6.
 
-The next execution layer will consume the provider/model contract while keeping process lifecycle and security boundaries explicit.
+No API key value is stored. No inference, terminal execution, filesystem mutation, network request, or external tool is performed by this stage. Any future provider transport must be implemented behind explicit permissions and the Stage 7 security boundary.
